@@ -11,5 +11,14 @@
     "servers": [
       "http://127.0.0.1:8123"
     ]
+  },
+  "cache": {
+    "shards": 1024,
+    "life_window": 360000000000,
+    "clean_window": 0,
+    "max_entries_in_window": 600000,
+    "max_entry_size": 500,
+    "verbose": true,
+    "max_cache_size": 0
   }
 }

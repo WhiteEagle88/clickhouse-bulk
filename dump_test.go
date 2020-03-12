@@ -13,7 +13,9 @@ func TestDump_Dump(t *testing.T) {
 	c := NewClickhouse(-1, 10)
 	dumpDir := "dumptest"
 	dumper := NewDumper(dumpDir)
+	//dumperDebug := NewDumperDebug("debug")
 	c.Dumper = dumper
+	//c.DumperDebug = dumperDebug
 	c.AddServer("")
 	c.Dump("eee", "eee", "error", "", 502)
 	assert.True(t, c.Empty())

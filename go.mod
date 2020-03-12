@@ -1,6 +1,7 @@
-module github.com/nikepan/clickhouse-bulk
+module github.com/whiteeagle88/clickhouse-bulk
 
 require (
+	github.com/allegro/bigcache v1.2.1
 	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/gommon v0.2.8 // indirect
 	github.com/mattn/go-colorable v0.1.0 // indirect

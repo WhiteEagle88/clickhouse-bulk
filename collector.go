@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"github.com/allegro/bigcache"
 	"net/url"
 	"regexp"
 	"strings"
@@ -23,6 +25,7 @@ type Table struct {
 	Params        string
 	Rows          []string
 	count         int
+	duplicates    int
 	FlushCount    int
 	FlushInterval int
 	mu            sync.Mutex
@@ -36,7 +39,9 @@ type Collector struct {
 	mu            sync.RWMutex
 	Count         int
 	FlushInterval int
-	Sender        Sender
+	Cache         *bigcache.BigCache
+	//DumperDebug   Dumper
+	Sender Sender
 }
 
 // NewTable - default table constructor
@@ -50,12 +55,14 @@ func NewTable(name string, sender Sender, count int, interval int) (t *Table) {
 }
 
 // NewCollector - default collector constructor
-func NewCollector(sender Sender, count int, interval int) (c *Collector) {
+func NewCollector(sender Sender, count int, interval int, cacheConfig cacheConfig) (c *Collector) {
 	c = new(Collector)
 	c.Sender = sender
 	c.Tables = make(map[string]*Table)
 	c.Count = count
 	c.FlushInterval = interval
+	c.Cache = NewCache(cacheConfig)
+	//c.DumperDebug = NewDumperDebug("debug")
 	return c
 }
 
@@ -71,14 +78,16 @@ func (t *Table) Content() string {
 // Flush - sends collected data in table to clickhouse
 func (t *Table) Flush() {
 	req := ClickhouseRequest{
-		Params:  t.Params,
-		Query:   t.Query,
-		Content: t.Content(),
-		Count:   t.count,
+		Params:     t.Params,
+		Query:      t.Query,
+		Content:    t.Content(),
+		Count:      t.count,
+		Duplicates: t.duplicates,
 	}
 	t.Sender.Send(&req)
 	t.Rows = make([]string, 0, t.FlushCount)
 	t.count = 0
+	t.duplicates = 0
 }
 
 // CheckFlush - check if flush is need and sends data to clickhouse
@@ -206,9 +215,19 @@ func (c *Collector) addTable(name string) *Table {
 func (c *Collector) Push(params string, content string) {
 	c.mu.RLock()
 	table, ok := c.Tables[params]
+	sha256Sum := sha256.Sum256([]byte(content))
+	_, err := c.Cache.Get(string(sha256Sum[:]))
+	if ok && err == nil {
+		table.duplicates++
+		//log.Printf("duplicate %+v\n", string(value))
+		c.mu.RUnlock()
+		return
+	}
 	if ok {
+		_ = c.Cache.Set(string(sha256Sum[:]), []byte(""))
 		table.Add(content)
 		c.mu.RUnlock()
+		//c.DumpDebug(params, content, "", "", 200)
 		pushCounter.Inc()
 		return
 	}
@@ -218,8 +237,17 @@ func (c *Collector) Push(params string, content string) {
 	if !ok {
 		table = c.addTable(params)
 	}
+	_, err = c.Cache.Get(string(sha256Sum[:]))
+	if err == nil {
+		table.duplicates++
+		//log.Printf("duplicate2 %+v\n", string(value))
+		c.mu.Unlock()
+		return
+	}
+	_ = c.Cache.Set(string(sha256Sum[:]), []byte(""))
 	table.Add(content)
 	c.mu.Unlock()
+	//c.DumpDebug(params, content, "", "", 200)
 	pushCounter.Inc()
 }
 
@@ -314,3 +342,12 @@ func (c *Collector) Parse(text string) (prefix string, content string) {
 	}
 	return prefix, content
 }
+
+//func (c *Collector) DumpDebug(params string, content string, response string, prefix string, status int) error {
+//	if c.DumperDebug != nil {
+//		c.mu.Lock()
+//		defer c.mu.Unlock()
+//		return c.DumperDebug.DumpDebug(params, content, response, prefix, status)
+//	}
+//	return nil
+//}

@@ -24,6 +24,7 @@ var ErrNoDumps = errors.New("No dumps")
 // Dumper - interface for dump data
 type Dumper interface {
 	Dump(params string, data string, response string, prefix string, status int) error
+	//DumpDebug(params string, data string, response string, prefix string, status int) error
 }
 
 // FileDumper - dumps data to file system
@@ -34,6 +35,27 @@ type FileDumper struct {
 	LockedFiles map[string]bool
 	mu          sync.Mutex
 }
+
+//func (d *FileDumper) DumpDebug(params string, content string, response string, prefix string, status int) error {
+//	d.mu.Lock()
+//	defer d.mu.Unlock()
+//	err := d.checkDir(true)
+//	if err != nil {
+//		return err
+//	}
+//	data := params + "\n" + content
+//	if response != "" {
+//		data += dumpResponseMark + response
+//	}
+//	d.DumpNum++
+//	err = ioutil.WriteFile(
+//		path.Join(d.Path, d.dumpName(d.DumpNum, prefix, status)), []byte(data), 0644,
+//	)
+//	if err != nil {
+//		log.Printf("ERROR: dump to file: %+v\n", err)
+//	}
+//	return err
+//}
 
 func (d *FileDumper) makePath(id string) string {
 	return path.Join(d.Path, id)
@@ -60,6 +82,13 @@ func NewDumper(path string) *FileDumper {
 	d.DumpPrefix = time.Now().Format("20060102150405")
 	return d
 }
+
+//func NewDumperDebug(path string) *FileDumper {
+//	d := new(FileDumper)
+//	d.Path = path
+//	d.DumpPrefix = time.Now().Format("20060102150405")
+//	return d
+//}
 
 // Dump - dumps data to files
 func (d *FileDumper) Dump(params string, content string, response string, prefix string, status int) error {
@@ -154,12 +183,14 @@ func (d *FileDumper) ProcessNextDump(sender Sender) error {
 	}
 	if data != "" {
 		params := ""
+		query := ""
 		lines := strings.Split(data, "\n")
 		if !HasPrefix(lines[0], "insert") {
 			params = lines[0]
-			data = strings.Join(lines[1:], "\n")
+			query = lines[1]
+			data = strings.Replace(data, params+"\n", "", 1)
 		}
-		_, status, err := sender.SendQuery(&ClickhouseRequest{Params: params, Content: data})
+		_, status, err := sender.SendQuery(&ClickhouseRequest{Params: params, Query: query, Content: data})
 		if err != nil {
 			return fmt.Errorf("server error (%+v) %+v", status, err)
 		}

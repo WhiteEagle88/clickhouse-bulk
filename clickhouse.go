@@ -30,14 +30,16 @@ type Clickhouse struct {
 	ConnectTimeout int
 	Dumper         Dumper
 	wg             sync.WaitGroup
+	//DumperDebug    Dumper
 }
 
 // ClickhouseRequest - request struct for queue
 type ClickhouseRequest struct {
-	Params  string
-	Query   string
-	Content string
-	Count   int
+	Params     string
+	Query      string
+	Content    string
+	Count      int
+	Duplicates int
 }
 
 // ErrServerIsDown - signals about server is down
@@ -131,6 +133,15 @@ func (c *Clickhouse) Dump(params string, content string, response string, prefix
 	return nil
 }
 
+//func (c *Clickhouse) DumpDebug(params string, content string, response string, prefix string, status int) error {
+//	if c.DumperDebug != nil {
+//		c.mu.Lock()
+//		defer c.mu.Unlock()
+//		return c.DumperDebug.DumpDebug(params, content, response, prefix, status)
+//	}
+//	return nil
+//}
+
 // Len - returns queries queue length
 func (c *Clickhouse) Len() int64 {
 	return c.Queue.Len()
@@ -158,6 +169,7 @@ func (c *Clickhouse) Run() {
 				}
 				c.Dump(data.Params, data.Content, resp, prefix, status)
 			} else {
+				//c.DumpDebug(data.Params, data.Content, resp, "", status)
 				sentCounter.Inc()
 			}
 			c.DumpServers()
@@ -179,7 +191,9 @@ func (srv *ClickhouseServer) SendQuery(r *ClickhouseRequest) (response string, s
 		if r.Params != "" {
 			url += "?" + r.Params
 		}
-		log.Printf("INFO: send %+v rows to %+v of %+v\n", r.Count, srv.URL, r.Query)
+		if r.Duplicates > 0 {
+			log.Printf("INFO: Duplicates: %+v. send %+v rows to %+v of %+v\n", r.Duplicates, r.Count, srv.URL, r.Query)
+		}
 		resp, err := srv.Client.Post(url, "", strings.NewReader(r.Content))
 		if err != nil {
 			srv.Bad = true

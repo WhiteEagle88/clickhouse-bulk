@@ -101,13 +101,15 @@ func SafeQuit(collect *Collector, sender Sender) {
 func RunServer(cnf Config) {
 	InitMetrics()
 	dumper := NewDumper(cnf.DumpDir)
+	//dumperDebug := NewDumperDebug("debug")
 	sender := NewClickhouse(cnf.Clickhouse.DownTimeout, cnf.Clickhouse.ConnectTimeout)
 	sender.Dumper = dumper
+	//sender.DumperDebug = dumperDebug
 	for _, url := range cnf.Clickhouse.Servers {
 		sender.AddServer(url)
 	}
 
-	collect := NewCollector(sender, cnf.FlushCount, cnf.FlushInterval)
+	collect := NewCollector(sender, cnf.FlushCount, cnf.FlushInterval, cnf.Cache)
 
 	// send collected data on SIGTERM and exit
 	signals := make(chan os.Signal)
