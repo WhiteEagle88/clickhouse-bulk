@@ -30,7 +30,6 @@ type Clickhouse struct {
 	ConnectTimeout int
 	Dumper         Dumper
 	wg             sync.WaitGroup
-	//DumperDebug    Dumper
 }
 
 // ClickhouseRequest - request struct for queue
@@ -133,15 +132,6 @@ func (c *Clickhouse) Dump(params string, content string, response string, prefix
 	return nil
 }
 
-//func (c *Clickhouse) DumpDebug(params string, content string, response string, prefix string, status int) error {
-//	if c.DumperDebug != nil {
-//		c.mu.Lock()
-//		defer c.mu.Unlock()
-//		return c.DumperDebug.DumpDebug(params, content, response, prefix, status)
-//	}
-//	return nil
-//}
-
 // Len - returns queries queue length
 func (c *Clickhouse) Len() int64 {
 	return c.Queue.Len()
@@ -169,7 +159,6 @@ func (c *Clickhouse) Run() {
 				}
 				c.Dump(data.Params, data.Content, resp, prefix, status)
 			} else {
-				//c.DumpDebug(data.Params, data.Content, resp, "", status)
 				sentCounter.Inc()
 			}
 			c.DumpServers()

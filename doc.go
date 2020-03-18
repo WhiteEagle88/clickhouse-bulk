@@ -51,6 +51,15 @@ Configuration file
     "servers": [
       "http://127.0.0.1:8123"
     ]
+  },
+  "cache": {
+    "shards": 1024, // Number of cache shards, value must be a power of two
+    "life_window": 10, // Time after which entry can be evicted(in minutes)
+    "clean_window": 0, // Interval between removing expired entries (clean up). If set to <= 0 then no action is performed.
+    "max_entries_in_window": 600000, // Max number of entries in life window. Used only to calculate initial size for cache shards.
+    "max_entry_size": 500, // Max size of entry in bytes. Used only to calculate initial size for cache shards.
+    "verbose": true, // Verbose mode prints information about new memory allocation
+    "max_cache_size": 0 // Limit for cache size in MB. Cache will not allocate more memory than this limit.
   }
 }
 

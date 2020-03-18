@@ -14,7 +14,7 @@
   },
   "cache": {
     "shards": 1024,
-    "life_window": 360000000000,
+    "life_window": 10,
     "clean_window": 0,
     "max_entries_in_window": 600000,
     "max_entry_size": 500,

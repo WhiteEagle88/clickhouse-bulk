@@ -227,7 +227,6 @@ func (c *Collector) Push(params string, content string) {
 		_ = c.Cache.Set(string(sha256Sum[:]), []byte(""))
 		table.Add(content)
 		c.mu.RUnlock()
-		//c.DumpDebug(params, content, "", "", 200)
 		pushCounter.Inc()
 		return
 	}
@@ -247,7 +246,6 @@ func (c *Collector) Push(params string, content string) {
 	_ = c.Cache.Set(string(sha256Sum[:]), []byte(""))
 	table.Add(content)
 	c.mu.Unlock()
-	//c.DumpDebug(params, content, "", "", 200)
 	pushCounter.Inc()
 }
 
@@ -342,12 +340,3 @@ func (c *Collector) Parse(text string) (prefix string, content string) {
 	}
 	return prefix, content
 }
-
-//func (c *Collector) DumpDebug(params string, content string, response string, prefix string, status int) error {
-//	if c.DumperDebug != nil {
-//		c.mu.Lock()
-//		defer c.mu.Unlock()
-//		return c.DumperDebug.DumpDebug(params, content, response, prefix, status)
-//	}
-//	return nil
-//}
