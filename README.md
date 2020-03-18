@@ -1,31 +1,6 @@
 # ClickHouse-Bulk
- 
-[![Build Status](https://travis-ci.org/nikepan/clickhouse-bulk.svg?branch=master)](https://travis-ci.org/nikepan/clickhouse-bulk)
-[![codecov](https://codecov.io/gh/nikepan/clickhouse-bulk/branch/master/graph/badge.svg)](https://codecov.io/gh/nikepan/clickhouse-bulk)
-[![download binaries](https://img.shields.io/badge/binaries-download-blue.svg)](https://github.com/nikepan/clickhouse-bulk/releases)
-[![Go Report Card](https://goreportcard.com/badge/github.com/nikepan/clickhouse-bulk)](https://goreportcard.com/report/github.com/nikepan/clickhouse-bulk)
-[![godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/nikepan/clickhouse-bulk)
 
 Simple [Yandex ClickHouse](https://clickhouse.yandex/) insert collector. It collect requests and send to ClickHouse servers.
-
-
-### Installation
-
-[Download binary](https://github.com/nikepan/clickhouse-bulk/releases) for you platorm
-
-or
-
-[Use docker image](https://hub.docker.com/r/nikepan/clickhouse-bulk/)
-
-
-or from sources (Go 1.13+):
-
-```text
-git clone https://github.com/nikepan/clickhouse-bulk
-cd clickhouse-bulk
-go build
-```
-
 
 ### Features
 - Group n requests and send to any of ClickHouse server
@@ -35,6 +10,7 @@ go build
 - Supports query in query parameters and in body
 - Supports other query parameters like username, password, database
 - Supports basic authentication
+- Deduplication of queries using bigcache
  
 
 For example:
@@ -53,7 +29,7 @@ INSERT INTO table3 (c1, c2, c3) VALUES ('v1', 'v2', 'v3')('v4', 'v5', 'v6')
 
 
 ### Configuration file
-```javascript
+```json5
 {
   "listen": ":8124", 
   "flush_count": 10000, // check by \n char
@@ -66,7 +42,16 @@ INSERT INTO table3 (c1, c2, c3) VALUES ('v1', 'v2', 'v3')('v4', 'v5', 'v6')
     "connect_timeout": 10, // wait for server connect (seconds)
     "servers": [
       "http://127.0.0.1:8123"
-    ]
+    ],
+  },
+  "cache": {
+    "shards": 1024, // Number of cache shards, value must be a power of two
+    "life_window": 10, // Time after which entry can be evicted(in minutes)
+    "clean_window": 0, // Interval between removing expired entries (clean up). If set to <= 0 then no action is performed.
+    "max_entries_in_window": 600000, // Max number of entries in life window. Used only to calculate initial size for cache shards.
+    "max_entry_size": 500, // Max size of entry in bytes. Used only to calculate initial size for cache shards.
+    "verbose": true, // Verbose mode prints information about new memory allocation
+    "max_cache_size": 0 // Limit for cache size in MB. Cache will not allocate more memory than this limit.
   }
 }
 ```
@@ -99,3 +84,8 @@ manual check main metrics
 ### Tips
 
 For better performance words FORMAT and VALUES must be uppercase.
+
+### Credits
+
+This repository is based on the following work:
+- Nikolay's GitHub Project [nikepan/clickhouse-bulk](https://github.com/nikepan/clickhouse-bulk). Thanks a lot for his work.
