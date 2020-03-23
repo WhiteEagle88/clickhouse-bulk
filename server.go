@@ -37,9 +37,6 @@ func NewServer(listen string, collector *Collector, debug bool) *Server {
 
 func (server *Server) readHandler(c echo.Context) error {
 	s := ""
-	if server.Debug {
-		log.Printf("DEBUG: query %+v\n", c.QueryString())
-	}
 
 	qs := c.QueryString()
 	user, password, ok := c.Request().BasicAuth()
@@ -62,10 +59,6 @@ func (server *Server) readHandler(c echo.Context) error {
 func (server *Server) writeHandler(c echo.Context) error {
 	q, _ := ioutil.ReadAll(c.Request().Body)
 	s := string(q)
-
-	if server.Debug {
-		log.Printf("DEBUG: query %+v %+v\n", c.QueryString(), s)
-	}
 
 	qs := c.QueryString()
 	user, password, ok := c.Request().BasicAuth()
@@ -102,7 +95,7 @@ func (server *Server) Shutdown(ctx context.Context) error {
 // InitServer - run server
 func InitServer(listen string, collector *Collector, debug bool) *Server {
 	server := NewServer(listen, collector, debug)
-	server.echo.GET("/", server.writeHandler)
+	server.echo.GET("/", server.readHandler)
 	server.echo.POST("/", server.writeHandler)
 	server.echo.GET("/status", server.statusHandler)
 	server.echo.GET("/metrics", echo.WrapHandler(promhttp.Handler()))

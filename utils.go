@@ -88,6 +88,7 @@ func ReadConfig(configFile string) (Config, error) {
 		}
 	}
 
+	readEnvBool("CLICKHOUSE_BULK_DEBUG", &cnf.Debug)
 	readEnvInt("CLICKHOUSE_FLUSH_COUNT", &cnf.FlushCount)
 	readEnvInt("CLICKHOUSE_FLUSH_INTERVAL", &cnf.FlushInterval)
 	readEnvInt("DUMP_CHECK_INTERVAL", &cnf.DumpCheckInterval)
