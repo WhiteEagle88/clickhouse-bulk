@@ -35,6 +35,30 @@ func NewServer(listen string, collector *Collector, debug bool) *Server {
 	return &Server{listen, collector, debug, echo.New()}
 }
 
+func (server *Server) readHandler(c echo.Context) error {
+	s := ""
+	if server.Debug {
+		log.Printf("DEBUG: query %+v\n", c.QueryString())
+	}
+
+	qs := c.QueryString()
+	user, password, ok := c.Request().BasicAuth()
+	if ok {
+		if qs == "" {
+			qs = "user=" + user + "&password=" + password
+		} else {
+			qs = "user=" + user + "&password=" + password + "&" + qs
+		}
+	}
+	params, content, insert := server.Collector.ParseQuery(qs, s)
+	if insert {
+		go server.Collector.Push(params, content)
+		return c.String(http.StatusOK, "")
+	}
+	resp, status, _ := server.Collector.Sender.SendQuery(&ClickhouseRequest{Params: qs, Content: s})
+	return c.String(status, resp)
+}
+
 func (server *Server) writeHandler(c echo.Context) error {
 	q, _ := ioutil.ReadAll(c.Request().Body)
 	s := string(q)
@@ -78,6 +102,7 @@ func (server *Server) Shutdown(ctx context.Context) error {
 // InitServer - run server
 func InitServer(listen string, collector *Collector, debug bool) *Server {
 	server := NewServer(listen, collector, debug)
+	server.echo.GET("/", server.writeHandler)
 	server.echo.POST("/", server.writeHandler)
 	server.echo.GET("/status", server.statusHandler)
 	server.echo.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
@@ -102,7 +127,7 @@ func RunServer(cnf Config) {
 	InitMetrics()
 	dumper := NewDumper(cnf.DumpDir)
 	//dumperDebug := NewDumperDebug("debug")
-	sender := NewClickhouse(cnf.Clickhouse.DownTimeout, cnf.Clickhouse.ConnectTimeout)
+	sender := NewClickhouse(cnf.Clickhouse.DownTimeout, cnf.Clickhouse.ConnectTimeout, cnf.Debug)
 	sender.Dumper = dumper
 	//sender.DumperDebug = dumperDebug
 	for _, url := range cnf.Clickhouse.Servers {

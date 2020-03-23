@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"net/url"
 	"strings"
 	"testing"
@@ -30,22 +31,30 @@ var escSelect = url.QueryEscape(qSelect)
 var escParamsAndSelect = qParams + "&query=" + escSelect
 
 func BenchmarkCollector_Push(t *testing.B) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	for i := 0; i < 30000; i++ {
 		c.Push(escTitle, qContent)
 	}
 }
 
 func TestCollector_Push(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	for i := 0; i < 10400; i++ {
-		c.Push(escTitle, qContent)
+		c.Push(escTitle, qContent+RandStringBytes(10))
 	}
 	assert.Equal(t, 400, c.Tables[escTitle].GetCount())
 }
 
+func TestCollector_Push_Unduplicate(t *testing.T) {
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
+	for i := 0; i < 1400; i++ {
+		c.Push(escTitle, qContent)
+	}
+	assert.Equal(t, 1, c.Tables[escTitle].GetCount())
+}
+
 func BenchmarkCollector_ParseQuery(b *testing.B) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	c.ParseQuery("", qTitle+" "+qContent)
 	c.ParseQuery(qParams, qTitle+" "+qContent)
 	c.ParseQuery("query="+escTitle, qContent)
@@ -53,7 +62,7 @@ func BenchmarkCollector_ParseQuery(b *testing.B) {
 }
 
 func TestCollector_ParseQuery(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	var params string
 	var content string
 	var insert bool
@@ -139,20 +148,20 @@ func TestCollector_ParseQuery(t *testing.T) {
 }
 
 func TestCollector_separateQuery(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	query, params := c.separateQuery(escParamsAndSelect)
 	assert.Equal(t, qSelect, query)
 	assert.Equal(t, qParams, params)
 }
 
 func TestTable_getFormat(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	f := c.getFormat(qTitle)
 	assert.Equal(t, "TabSeparated", f)
 }
 
 func TestTable_CheckFlush(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	c.Push(qTitle, qContent)
 	count := 0
 	for !c.Tables[qTitle].Empty() {
@@ -163,7 +172,21 @@ func TestTable_CheckFlush(t *testing.T) {
 }
 
 func TestCollector_FlushAll(t *testing.T) {
-	c := NewCollector(&fakeSender{}, 1000, 1000)
+	c := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	c.Push(qTitle, qContent)
 	c.FlushAll()
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
 }

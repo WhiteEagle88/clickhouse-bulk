@@ -18,12 +18,24 @@ import (
 )
 
 func TestRunServer(t *testing.T) {
-	collector := NewCollector(&fakeSender{}, 1000, 1000)
+	collector := NewCollector(&fakeSender{}, 1000, 1000, cacheConfig{Shards: 1024})
 	server := InitServer("", collector, false)
 	go server.Start()
 	server.echo.POST("/", server.writeHandler)
 
-	status, resp := request("POST", "/", "", server.echo)
+	status, resp := request("GET", "/", "", server.echo)
+	assert.Equal(t, status, http.StatusOK)
+	assert.Equal(t, resp, "")
+
+	status, resp = request("GET", "/?query="+escSelect, "", server.echo)
+	assert.Equal(t, status, http.StatusOK)
+	assert.Equal(t, resp, "")
+
+	status, resp = request("GET", "/?query="+escTitle, qContent, server.echo)
+	assert.Equal(t, status, http.StatusOK)
+	assert.Equal(t, resp, "")
+
+	status, resp = request("POST", "/", "", server.echo)
 	assert.Equal(t, status, http.StatusOK)
 	assert.Equal(t, resp, "")
 
@@ -58,7 +70,7 @@ func TestRunServer(t *testing.T) {
 
 func TestServer_SafeQuit(t *testing.T) {
 	sender := &fakeSender{}
-	collect := NewCollector(sender, 1000, 1000)
+	collect := NewCollector(sender, 1000, 1000, cacheConfig{Shards: 1024})
 	collect.AddTable("test")
 	collect.Push("sss", "sss")
 
@@ -93,10 +105,10 @@ func TestServer_MultiServer(t *testing.T) {
 	}))
 	defer s2.Close()
 
-	sender := NewClickhouse(10, 10)
+	sender := NewClickhouse(10, 10, false)
 	sender.AddServer(s1.URL)
 	sender.AddServer(s2.URL)
-	collect := NewCollector(sender, 1000, 1000)
+	collect := NewCollector(sender, 1000, 1000, cacheConfig{Shards: 1024})
 	collect.AddTable("test")
 	collect.Push("eee", "eee")
 	collect.Push("fff", "fff")

@@ -31,6 +31,7 @@ type FileDumper struct {
 	Path        string
 	DumpPrefix  string
 	DumpNum     int
+	Debug       bool
 	LockedFiles map[string]bool
 	mu          sync.Mutex
 }

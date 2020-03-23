@@ -29,6 +29,7 @@ type Clickhouse struct {
 	DownTimeout    int
 	ConnectTimeout int
 	Dumper         Dumper
+	Debug          bool
 	wg             sync.WaitGroup
 }
 
@@ -48,7 +49,7 @@ var ErrServerIsDown = errors.New("server is down")
 var ErrNoServers = errors.New("No working clickhouse servers")
 
 // NewClickhouse - get clickhouse object
-func NewClickhouse(downTimeout int, connectTimeout int) (c *Clickhouse) {
+func NewClickhouse(downTimeout int, connectTimeout int, debug bool) (c *Clickhouse) {
 	c = new(Clickhouse)
 	c.DownTimeout = downTimeout
 	c.ConnectTimeout = connectTimeout
@@ -57,6 +58,7 @@ func NewClickhouse(downTimeout int, connectTimeout int) (c *Clickhouse) {
 	}
 	c.Servers = make([]*ClickhouseServer, 0)
 	c.Queue = queue.New(1000)
+	c.Debug = debug
 	go c.Run()
 	return c
 }
@@ -174,7 +176,7 @@ func (c *Clickhouse) WaitFlush() (err error) {
 }
 
 // SendQuery - sends query to server and return result
-func (srv *ClickhouseServer) SendQuery(r *ClickhouseRequest) (response string, status int, err error) {
+func (srv *ClickhouseServer) SendQuery(r *ClickhouseRequest, debug bool) (response string, status int, err error) {
 	if srv.URL != "" {
 		url := srv.URL
 		if r.Params != "" {
@@ -182,6 +184,8 @@ func (srv *ClickhouseServer) SendQuery(r *ClickhouseRequest) (response string, s
 		}
 		if r.Duplicates > 0 {
 			log.Printf("INFO: Duplicates: %+v. send %+v rows to %+v of %+v\n", r.Duplicates, r.Count, srv.URL, r.Query)
+		} else if debug {
+			log.Printf("INFO: send %+v rows to %+v of %+v\n", r.Count, srv.URL, r.Query)
 		}
 		resp, err := srv.Client.Post(url, "", strings.NewReader(r.Content))
 		if err != nil {
@@ -207,7 +211,7 @@ func (c *Clickhouse) SendQuery(r *ClickhouseRequest) (response string, status in
 	for {
 		s := c.GetNextServer()
 		if s != nil {
-			response, status, err = s.SendQuery(r)
+			response, status, err = s.SendQuery(r, c.Debug)
 			if errors.Is(err, ErrServerIsDown) {
 				log.Printf("ERROR: server down (%+v): %+v\n", status, response)
 				continue
