@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,15 +39,7 @@ func NewServer(listen string, collector *Collector, debug bool) *Server {
 func (server *Server) readHandler(c echo.Context) error {
 	s := ""
 
-	qs := c.QueryString()
-	user, password, ok := c.Request().BasicAuth()
-	if ok {
-		if qs == "" {
-			qs = "user=" + user + "&password=" + password
-		} else {
-			qs = "user=" + user + "&password=" + password + "&" + qs
-		}
-	}
+	qs := getQueryStringWithAuthentication(c)
 	params, content, insert := server.Collector.ParseQuery(qs, s)
 	if insert {
 		go server.Collector.Push(params, content)
@@ -60,15 +53,7 @@ func (server *Server) writeHandler(c echo.Context) error {
 	q, _ := ioutil.ReadAll(c.Request().Body)
 	s := string(q)
 
-	qs := c.QueryString()
-	user, password, ok := c.Request().BasicAuth()
-	if ok {
-		if qs == "" {
-			qs = "user=" + user + "&password=" + password
-		} else {
-			qs = "user=" + user + "&password=" + password + "&" + qs
-		}
-	}
+	qs := getQueryStringWithAuthentication(c)
 	params, content, insert := server.Collector.ParseQuery(qs, s)
 	if insert {
 		go server.Collector.Push(params, content)
@@ -159,4 +144,26 @@ func RunServer(cnf Config) {
 		SafeQuit(collect, sender)
 		os.Exit(1)
 	}
+}
+
+func getQueryStringWithAuthentication(c echo.Context) string {
+	qs := c.QueryString()
+	user, password, ok := c.Request().BasicAuth()
+	userFromHeader := url.QueryEscape(c.Request().Header.Get("X-ClickHouse-User"))
+	passwordFromHeader := url.QueryEscape(c.Request().Header.Get("X-ClickHouse-Key"))
+	if ok {
+		if qs == "" {
+			qs = "user=" + user + "&password=" + password
+		} else {
+			qs = "user=" + user + "&password=" + password + "&" + qs
+		}
+	} else if userFromHeader != "" || passwordFromHeader != "" {
+		if qs == "" {
+			qs = "user=" + userFromHeader + "&password=" + passwordFromHeader
+		} else {
+			qs = "user=" + userFromHeader + "&password=" + passwordFromHeader + "&" + qs
+		}
+	}
+
+	return qs
 }
