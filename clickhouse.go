@@ -46,14 +46,14 @@ type ClickhouseRequest struct {
 var ErrServerIsDown = errors.New("server is down")
 
 // ErrNoServers - signals about no working servers
-var ErrNoServers = errors.New("No working clickhouse servers")
+var ErrNoServers = errors.New("no working clickhouse servers")
 
 // NewClickhouse - get clickhouse object
 func NewClickhouse(downTimeout int, connectTimeout int, debug bool) (c *Clickhouse) {
 	c = new(Clickhouse)
 	c.DownTimeout = downTimeout
 	c.ConnectTimeout = connectTimeout
-	if c.ConnectTimeout > 0 {
+	if c.ConnectTimeout < 0 {
 		c.ConnectTimeout = 10
 	}
 	c.Servers = make([]*ClickhouseServer, 0)
@@ -120,7 +120,7 @@ func (c *Clickhouse) GetNextServer() (srv *ClickhouseServer) {
 // Send - send request to next server
 func (c *Clickhouse) Send(r *ClickhouseRequest) {
 	c.wg.Add(1)
-	c.Queue.Put(r)
+	_ = c.Queue.Put(r)
 }
 
 // Dump - save query to file
@@ -159,7 +159,7 @@ func (c *Clickhouse) Run() {
 				if status >= 400 && status < 502 {
 					prefix = "2"
 				}
-				c.Dump(data.Params, data.Content, resp, prefix, status)
+				_ = c.Dump(data.Params, data.Content, resp, prefix, status)
 			} else {
 				sentCounter.Inc()
 			}
