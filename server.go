@@ -108,8 +108,8 @@ func RunServer(cnf Config) {
 	sender := NewClickhouse(cnf.Clickhouse.DownTimeout, cnf.Clickhouse.ConnectTimeout, cnf.Debug)
 	sender.Dumper = dumper
 	//sender.DumperDebug = dumperDebug
-	for _, url := range cnf.Clickhouse.Servers {
-		sender.AddServer(url)
+	for _, serverUrl := range cnf.Clickhouse.Servers {
+		sender.AddServer(serverUrl)
 	}
 
 	collect := NewCollector(sender, cnf.FlushCount, cnf.FlushInterval, cnf.Cache)

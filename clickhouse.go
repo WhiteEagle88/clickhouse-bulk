@@ -96,9 +96,12 @@ func (c *Clickhouse) GetNextServer() (srv *ClickhouseServer) {
 	tnow := time.Now()
 	for _, s := range c.Servers {
 		if s.Bad {
-			if tnow.Sub(s.LastRequest) > time.Second*time.Duration(c.DownTimeout) {
+			lastRequest := tnow.Sub(s.LastRequest)
+			downTimeout := time.Second * time.Duration(c.DownTimeout)
+			if lastRequest > downTimeout {
 				s.Bad = false
 			} else {
+				log.Printf("Server: %+v. Last request: %+v. Need: %+v", s.URL, lastRequest, downTimeout)
 				continue
 			}
 		}
@@ -198,7 +201,7 @@ func (srv *ClickhouseServer) SendQuery(r *ClickhouseRequest, debug bool) (respon
 			srv.Bad = true
 			err = ErrServerIsDown
 		} else if resp.StatusCode >= 400 {
-			err = fmt.Errorf("Wrong server status %+v:\nresponse: %+v\nrequest: %#v", resp.StatusCode, s, r.Content)
+			err = fmt.Errorf("Wrong server status %+v:\nresponse: %+v", resp.StatusCode, s)
 		}
 		return s, resp.StatusCode, err
 	}
